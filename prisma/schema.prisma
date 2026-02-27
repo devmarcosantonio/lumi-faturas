@@ -1,36 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-}
-
-model Fatura {
-  id                               String   @id @default(uuid())
-  numero_cliente                   String
-  instalacao                       String
-  mes_referencia                   String
-  data_vencimento                  DateTime
-  energia_eletrica_quantidade      Float
-  energia_eletrica_valor           Float
-  energia_sceee_icms_quantidade    Float
-  energia_sceee_icms_valor         Float
-  energia_compensada_gd_quantidade Float
-  energia_compensada_gd_valor      Float
-  contrib_ilum_publica_valor       Float
-  url_download_fatura              String
-  createdAt                        DateTime @default(now())
-  updatedAt                        DateTime @updatedAt
-  cliente                          Cliente? @relation(fields: [clienteId], references: [id])
-  clienteId                        String?
 }
 
 model Cliente {
@@ -39,8 +12,48 @@ model Cliente {
   nome           String
   uf             String
   municipio      String
-  cep            String   @unique
+  cep            String
   faturas        Fatura[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([numero_cliente])
+}
+
+model Fatura {
+  id String @id @default(uuid())
+
+  numero_cliente  String
+  instalacao      String
+  mes_referencia  String
+  data_vencimento DateTime
+
+  // Energia elétrica
+  energia_eletrica_quantidade Decimal @db.Decimal(12, 3)
+  energia_eletrica_valor      Decimal @db.Decimal(12, 2)
+
+  // Energia SCEE sem ICMS
+  energia_sceee_icms_quantidade Decimal @db.Decimal(12, 3)
+  energia_sceee_icms_valor      Decimal @db.Decimal(12, 2)
+
+  // Energia compensada GD
+  energia_compensada_gd_quantidade Decimal @db.Decimal(12, 3)
+  energia_compensada_gd_valor      Decimal @db.Decimal(12, 2)
+
+  // Contribuição pública
+  contrib_ilum_publica_valor Decimal @db.Decimal(12, 2)
+
+  url_download_fatura String
+  resposta_json_llm   Json
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clienteId])
+  @@index([mes_referencia])
+  @@index([clienteId, mes_referencia])
 }
