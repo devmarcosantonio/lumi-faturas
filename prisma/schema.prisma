@@ -12,3 +12,35 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Fatura {
+  id                               String   @id @default(uuid())
+  numero_cliente                   String
+  instalacao                       String
+  mes_referencia                   String
+  data_vencimento                  DateTime
+  energia_eletrica_quantidade      Float
+  energia_eletrica_valor           Float
+  energia_sceee_icms_quantidade    Float
+  energia_sceee_icms_valor         Float
+  energia_compensada_gd_quantidade Float
+  energia_compensada_gd_valor      Float
+  contrib_ilum_publica_valor       Float
+  url_download_fatura              String
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
+  cliente                          Cliente? @relation(fields: [clienteId], references: [id])
+  clienteId                        String?
+}
+
+model Cliente {
+  id             String   @id @default(uuid())
+  numero_cliente String   @unique
+  nome           String
+  uf             String
+  municipio      String
+  cep            String   @unique
+  faturas        Fatura[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
