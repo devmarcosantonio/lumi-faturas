@@ -1,0 +1,15 @@
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: lumi-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lumi
+      POSTGRES_PASSWORD: lumi
+      POSTGRES_DB: lumi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
