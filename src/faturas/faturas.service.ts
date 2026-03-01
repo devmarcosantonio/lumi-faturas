@@ -1,10 +1,20 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { OpenAiService } from 'src/open-ai/open-ai.service';
 import { PDFParse } from 'pdf-parse';
-import { ClientesRepository } from 'src/clientes/clientes.repository';
 import { FaturasRepository } from './faturas.repository';
+import { S3Service } from 'src/s3/s3.service';
+import { ClientesService } from 'src/clientes/clientes.service';
 import { z } from 'zod';
 import { Fatura } from '@prisma/client';
+import {
+  convertMesReferenciaToStartDate,
+  convertMesReferenciaToEndDate,
+  getMonthRange,
+} from 'src/utils/date.utils';
 
 interface ClienteData {
   numero_cliente: string | null;
@@ -27,6 +37,7 @@ export interface FaturaExtraidaData {
   cliente: ClienteData;
   instalacao: string | null;
   mes_referencia: string | null;
+  mes_referencia_data: string | null;
   data_vencimento: string | null;
   energia_eletrica: EnergiaData;
   energia_scee_sem_icms: EnergiaData;
@@ -36,11 +47,65 @@ export interface FaturaExtraidaData {
 
 @Injectable()
 export class FaturasService {
+  private readonly logger = new Logger(FaturasService.name);
+
   constructor(
     private openAiService: OpenAiService,
-    private clientesRepository: ClientesRepository,
+    private clientesService: ClientesService,
     private faturasRepository: FaturasRepository,
+    private s3Service: S3Service,
   ) {}
+
+  async getFaturaByClienteEMesReferencia({
+    numeroCliente,
+    mesReferencia,
+    mesReferenciaInicio,
+    mesReferenciaFim,
+  }: {
+    numeroCliente?: string;
+    mesReferencia?: string;
+    mesReferenciaInicio?: string;
+    mesReferenciaFim?: string;
+  }): Promise<Fatura[]> {
+    // Se numeroCliente foi fornecido, busca o ID do cliente
+    let clienteDbId: string | undefined;
+    if (numeroCliente) {
+      const cliente =
+        await this.clientesService.findByNumeroCliente(numeroCliente);
+      if (!cliente) {
+        throw new InternalServerErrorException(
+          `Cliente com número ${numeroCliente} não encontrado`,
+        );
+      }
+      clienteDbId = cliente.id;
+    }
+
+    // Converte datas (formato: YYYY-MM)
+    let dataInicio: Date | undefined;
+    let dataFim: Date | undefined;
+
+    // Se mesReferencia específico foi fornecido, converte para período de 1 mês
+    if (mesReferencia) {
+      dataInicio = convertMesReferenciaToStartDate(mesReferencia);
+      dataFim = convertMesReferenciaToEndDate(mesReferencia);
+    } else {
+      // Senão, usa período customizado se fornecido
+      if (mesReferenciaInicio) {
+        dataInicio = convertMesReferenciaToStartDate(mesReferenciaInicio);
+      }
+
+      if (mesReferenciaFim) {
+        dataFim = convertMesReferenciaToEndDate(mesReferenciaFim);
+      }
+    }
+
+    // Busca com os parâmetros disponíveis (se nenhum for fornecido, retorna todas)
+    return this.faturasRepository.findByIdClienteEMesReferencia({
+      clienteId: clienteDbId,
+      mesReferenciaInicio: dataInicio,
+      mesReferenciaFim: dataFim,
+    });
+  }
 
   async processarFatura(pdfBuffer: Buffer): Promise<Fatura> {
     try {
@@ -77,20 +142,25 @@ export class FaturasService {
 
       clienteSchema.parse(resposta_json.cliente);
 
-      const clienteExistente = await this.clientesRepository.findClientByNumber(
+      let cliente = await this.clientesService.findByNumeroCliente(
         resposta_json.cliente.numero_cliente!,
       );
 
-      // Cria ou obtém o cliente
-      let cliente = clienteExistente;
+      // Cria o cliente se não existir
       if (!cliente) {
-        cliente = await this.clientesRepository.create({
+        cliente = await this.clientesService.create({
           numero_cliente: resposta_json.cliente.numero_cliente!,
           nome: resposta_json.cliente.nome!,
           municipio: resposta_json.cliente.municipio!,
           uf: resposta_json.cliente.uf!,
           cep: resposta_json.cliente.cep!,
         });
+      }
+
+      if (!cliente) {
+        throw new InternalServerErrorException(
+          'Erro ao criar ou buscar cliente',
+        );
       }
 
       // Valida campos obrigatórios da fatura
@@ -107,6 +177,27 @@ export class FaturasService {
       if (!resposta_json.data_vencimento) {
         throw new InternalServerErrorException(
           'Campo "data_vencimento" é obrigatório',
+        );
+      }
+
+      // Converte mes_referencia_data para buscar duplicatas (busca no mês completo)
+      let mesReferenciaInicio: Date | undefined;
+      let mesReferenciaFim: Date | undefined;
+      if (resposta_json.mes_referencia_data) {
+        const data = new Date(resposta_json.mes_referencia_data);
+        [mesReferenciaInicio, mesReferenciaFim] = getMonthRange(data);
+      }
+
+      const faturaClienteMesReferenciaExistente =
+        await this.faturasRepository.findByIdClienteEMesReferencia({
+          clienteId: cliente.id,
+          mesReferenciaInicio,
+          mesReferenciaFim,
+        });
+
+      if (faturaClienteMesReferenciaExistente.length > 0) {
+        throw new InternalServerErrorException(
+          `Já existe uma fatura para o cliente ${cliente.numero_cliente} no mês de referência ${resposta_json.mes_referencia}`,
         );
       }
 
@@ -139,10 +230,30 @@ export class FaturasService {
       // 4. Economia GD (R$) = valor da energia compensada (geralmente negativo)
       const economiaGd = energiaCompensadaValor;
 
+      // Faz upload do PDF para o S3 e obtém a URL
+      let pdfUrl: string | null = null;
+
+      try {
+        pdfUrl = await this.s3Service.uploadPdf(
+          pdfBuffer,
+          resposta_json.cliente.numero_cliente!,
+          resposta_json.mes_referencia,
+        );
+        this.logger.log(`PDF salvo no S3: ${pdfUrl}`);
+      } catch (uploadError) {
+        this.logger.error(
+          `Erro ao fazer upload para S3: ${uploadError instanceof Error ? uploadError.message : 'Erro desconhecido'}`,
+        );
+        this.logger.warn('Continuando processamento sem URL do PDF');
+      }
+
       // Salva a fatura com os campos calculados
       const fatura = await this.faturasRepository.create({
         instalacao: resposta_json.instalacao,
         mes_referencia: resposta_json.mes_referencia,
+        mes_referencia_data: resposta_json.mes_referencia_data
+          ? new Date(resposta_json.mes_referencia_data)
+          : null,
         data_vencimento: new Date(resposta_json.data_vencimento),
         energia_eletrica_quantidade: energiaEletricaKwh,
         energia_eletrica_valor: energiaEletricaValor,
@@ -151,12 +262,13 @@ export class FaturasService {
         energia_compensada_gd_quantidade: energiaCompensadaKwh,
         energia_compensada_gd_valor: energiaCompensadaValor,
         contrib_ilum_publica_valor: contribIlumValor,
+
         // Campos calculados
         consumo_energia_eletrica_kwh: consumoEnergiaEletricaKwh,
         energia_compensada_kwh: energiaCompensadaTotal,
         valor_total_sem_gd: valorTotalSemGd,
         economia_gd: economiaGd,
-        url_download_fatura: '', // TODO: adicionar URL quando implementar upload
+        url_download_fatura: pdfUrl,
         resposta_json_llm: resposta_json as Record<string, any>,
         cliente: {
           connect: { id: cliente.id },

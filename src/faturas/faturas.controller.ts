@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -15,8 +16,18 @@ export class FaturasController {
   constructor(private faturasService: FaturasService) {}
 
   @Get()
-  getFaturas() {
-    return 'Retornando todas as faturas';
+  async getFaturas(
+    @Query('numero_cliente') numeroCliente?: string,
+    @Query('mes_referencia') mesReferencia?: string,
+    @Query('mes_referencia_inicio') mesReferenciaInicio?: string,
+    @Query('mes_referencia_fim') mesReferenciaFim?: string,
+  ) {
+    return this.faturasService.getFaturaByClienteEMesReferencia({
+      numeroCliente,
+      mesReferencia,
+      mesReferenciaInicio,
+      mesReferenciaFim,
+    });
   }
 
   @Post()

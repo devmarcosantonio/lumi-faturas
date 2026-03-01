@@ -56,6 +56,7 @@ export class OpenAiService {
 
     "instalacao": string | null,
     "mes_referencia": string | null,
+    "mes_referencia_data": string | null,
     "data_vencimento": string | null,
 
     "energia_eletrica": {
@@ -84,6 +85,7 @@ export class OpenAiService {
     REGRAS DE EXTRAÇÃO ESPECÍFICAS:
 
     numero_cliente e instalacao: capture exatamente como aparecem no documento (strings).
+    mes_referencia_data: converta o mês de referência para o primeiro dia daquele mês no formato ISO YYYY-MM-DD (ex: "JAN/2026" vira "2026-01-01").
     data_vencimento: extraia a data de vencimento e converta para YYYY-MM-DD.
     cep: remova qualquer formatação (hífens, pontos), retorne apenas os dígitos (ex: "12345678").
     nome: nome completo do cliente conforme aparece na fatura.

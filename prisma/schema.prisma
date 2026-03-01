@@ -27,9 +27,10 @@ model Fatura {
   clienteId String
   cliente   Cliente @relation(fields: [clienteId], references: [id])
 
-  instalacao      String
-  mes_referencia  String
-  data_vencimento DateTime
+  instalacao            String
+  mes_referencia        String
+  mes_referencia_data   DateTime?
+  data_vencimento       DateTime
 
   // Energia elétrica
   energia_eletrica_quantidade Decimal @db.Decimal(12, 3)
@@ -52,7 +53,7 @@ model Fatura {
   valor_total_sem_gd           Decimal @db.Decimal(12, 2) // energia_eletrica + energia_scee + contrib_ilum
   economia_gd                  Decimal @db.Decimal(12, 2) // energia_compensada_gd valor (geralmente negativo)
 
-  url_download_fatura String
+  url_download_fatura String?
   resposta_json_llm   Json
 
   createdAt DateTime @default(now())
@@ -60,5 +61,6 @@ model Fatura {
 
   @@index([clienteId])
   @@index([mes_referencia])
+  @@index([mes_referencia_data])
   @@index([clienteId, mes_referencia])
 }

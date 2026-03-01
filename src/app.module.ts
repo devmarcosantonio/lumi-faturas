@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { OpenAiModule } from './open-ai/open-ai.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ClientesModule } from './clientes/clientes.module';
     }),
     OpenAiModule,
     ClientesModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [AppService],
