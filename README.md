@@ -1,98 +1,331 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Lumi Faturas API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Sistema de processamento e análise de faturas de energia elétrica utilizando IA para extração automática de dados de PDFs.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Descrição
 
-## Description
+API REST desenvolvida para processar faturas de energia elétrica em formato PDF, extrair informações estruturadas usando OpenAI (GPT-4o-mini), calcular valores derivados, armazenar dados em PostgreSQL e fazer upload dos arquivos para AWS S3.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tecnologias Utilizadas
 
-## Project setup
+- **NestJS** 11.0.1 - Framework Node.js
+- **TypeScript** - Linguagem de programação
+- **PostgreSQL** 16 - Banco de dados relacional
+- **Prisma** 7.4.1 - ORM
+- **OpenAI API** - Extração de dados via GPT-4o-mini
+- **AWS S3** - Armazenamento de arquivos PDF
+- **pdf-parse** 2.4.5 - Extração de texto de PDFs
+- **Zod** - Validação de schemas
+- **Docker** - Containerização do banco de dados
 
-```bash
-$ npm install
-```
+## Pré-requisitos
 
-## Compile and run the project
+- Node.js 18+
+- Docker e Docker Compose
+- Conta AWS com S3 configurado
+- Chave de API da OpenAI
+
+## Instalação
+
+### 1. Clonar o repositório
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <repository-url>
+cd lumi-faturas
 ```
 
-## Run tests
+### 2. Instalar dependências
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
+### 3. Configurar variáveis de ambiente
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Crie um arquivo `.env` na raiz do projeto:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+DATABASE_URL="postgresql://lumi:lumi@localhost:5432/lumi"
+OPENAI_API_KEY="sua-chave-openai"
+AWS_ACCESS_KEY_ID="sua-access-key-aws"
+AWS_SECRET_ACCESS_KEY="sua-secret-key-aws"
+AWS_REGION="us-east-1"
+AWS_S3_BUCKET_NAME="nome-do-bucket"
+```
+
+### 4. Iniciar banco de dados (Docker)
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker-compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 5. Executar migrações do Prisma
 
-## Resources
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### 6. Iniciar aplicação
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Modo desenvolvimento:**
 
-## Support
+```bash
+npm run start:dev
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Modo produção:**
 
-## Stay in touch
+```bash
+npm run build
+npm run start:prod
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+A API estará disponível em `http://localhost:3000`
 
-## License
+## Endpoints da API
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Faturas
+
+#### POST /faturas
+
+Upload e processamento de fatura em PDF.
+
+**Request:**
+
+- Content-Type: `multipart/form-data`
+- Body: `file` (PDF, max 10MB)
+
+**Response:**
+
+```json
+{
+  "mensagem": "Fatura processada com sucesso",
+  "resposta": {
+    "id": "uuid",
+    "clienteId": "uuid",
+    "instalacao": "3004298116",
+    "mes_referencia": "JAN/2026",
+    "mes_referencia_data": "2026-01-01T00:00:00.000Z",
+    "data_vencimento": "2026-02-10T00:00:00.000Z",
+    "energia_eletrica_quantidade": 100.5,
+    "energia_eletrica_valor": 50.25,
+    "energia_sceee_icms_quantidade": 150.3,
+    "energia_sceee_icms_valor": 75.15,
+    "energia_compensada_gd_quantidade": 250.8,
+    "energia_compensada_gd_valor": -125.40,
+    "contrib_ilum_publica_valor": 45.50,
+    "consumo_energia_eletrica_kwh": 250.8,
+    "energia_compensada_kwh": 250.8,
+    "valor_total_sem_gd": 170.90,
+    "economia_gd": -125.40,
+    "url_download_fatura": "https://bucket.s3.amazonaws.com/...",
+    "resposta_json_llm": { ... },
+    "cliente": { ... },
+    "createdAt": "2026-03-01T22:00:00.000Z",
+    "updatedAt": "2026-03-01T22:00:00.000Z"
+  }
+}
+```
+
+#### GET /faturas
+
+Buscar faturas com filtros opcionais.
+
+**Query Parameters:**
+
+- `numero_cliente` (opcional) - Número do cliente
+- `mes_referencia` (opcional) - Mês específico no formato YYYY-MM (ex: 2026-01)
+- `mes_referencia_inicio` (opcional) - Data início do período YYYY-MM
+- `mes_referencia_fim` (opcional) - Data fim do período YYYY-MM
+
+**Exemplos:**
+
+```bash
+# Buscar todas as faturas
+GET /faturas
+
+# Filtrar por cliente
+GET /faturas?numero_cliente=7202210726
+
+# Filtrar por mês específico
+GET /faturas?mes_referencia=2026-01
+
+# Filtrar por período
+GET /faturas?mes_referencia_inicio=2025-01&mes_referencia_fim=2025-12
+
+# Combinar filtros
+GET /faturas?numero_cliente=7202210726&mes_referencia=2026-01
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "clienteId": "uuid",
+    "instalacao": "3004298116",
+    "mes_referencia": "JAN/2026",
+    "mes_referencia_data": "2026-01-01T00:00:00.000Z",
+    ...
+    "cliente": {
+      "id": "uuid",
+      "numero_cliente": "7202210726",
+      "nome": "Nome do Cliente",
+      "uf": "SC",
+      "municipio": "Cidade",
+      "cep": "12345678"
+    }
+  }
+]
+```
+
+## Estrutura do Projeto
+
+```
+src/
+├── clientes/          # Módulo de clientes
+│   ├── clientes.controller.ts
+│   ├── clientes.service.ts
+│   ├── clientes.repository.ts
+│   └── clientes.module.ts
+├── faturas/           # Módulo de faturas (principal)
+│   ├── faturas.controller.ts
+│   ├── faturas.service.ts
+│   ├── faturas.repository.ts
+│   └── faturas.module.ts
+├── open-ai/           # Integração OpenAI
+│   ├── open-ai.service.ts
+│   └── open-ai.module.ts
+├── prisma/            # Configuração Prisma
+│   ├── prisma.service.ts
+│   └── prisma.module.ts
+├── s3/                # Integração AWS S3
+│   └── s3.service.ts
+├── utils/             # Utilitários
+│   └── date.utils.ts
+├── app.module.ts
+└── main.ts
+
+prisma/
+├── schema.prisma      # Schema do banco de dados
+└── migrations/        # Migrações
+```
+
+## Fluxo de Processamento de Faturas
+
+1. **Upload PDF**: Usuário envia arquivo PDF via endpoint POST /faturas
+2. **Extração de Texto**: Sistema usa pdf-parse para extrair texto do PDF
+3. **Análise IA**: OpenAI (GPT-4o-mini) extrai dados estruturados em JSON
+4. **Validação**: Zod valida schema dos dados extraídos
+5. **Gerenciamento de Cliente**: Busca ou cria cliente no banco de dados
+6. **Verificação de Duplicatas**: Valida se fatura já existe (cliente + mês)
+7. **Cálculos Derivados**: Calcula valores agregados
+8. **Upload S3**: Faz upload do PDF para AWS S3 (opcional)
+9. **Persistência**: Salva fatura e dados relacionados no PostgreSQL
+10. **Resposta**: Retorna fatura processada ao cliente
+
+## Campos Calculados Automaticamente
+
+- **consumo_energia_eletrica_kwh**: Energia Elétrica + Energia SCEE
+- **energia_compensada_kwh**: Valor da Energia Compensada GD
+- **valor_total_sem_gd**: Energia Elétrica + Energia SCEE + Contrib. Iluminação
+- **economia_gd**: Valor da compensação (geralmente negativo)
+
+## Validações de Duplicatas
+
+O sistema impede o cadastro de faturas duplicadas verificando:
+
+- Mesmo número de cliente
+- Mesmo mês de referência
+
+## Schema do Banco de Dados
+
+### Cliente
+
+- id (UUID)
+- numero_cliente (String, único)
+- nome (String)
+- uf (String)
+- municipio (String)
+- cep (String)
+- createdAt / updatedAt
+
+### Fatura
+
+- id (UUID)
+- clienteId (UUID, FK)
+- instalacao (String)
+- mes_referencia (String - formato: JAN/2026)
+- mes_referencia_data (DateTime - primeiro dia do mês)
+- data_vencimento (DateTime)
+- energia_eletrica_quantidade / valor (Decimal)
+- energia_sceee_icms_quantidade / valor (Decimal)
+- energia_compensada_gd_quantidade / valor (Decimal)
+- contrib_ilum_publica_valor (Decimal)
+- consumo_energia_eletrica_kwh (Decimal, calculado)
+- energia_compensada_kwh (Decimal, calculado)
+- valor_total_sem_gd (Decimal, calculado)
+- economia_gd (Decimal, calculado)
+- url_download_fatura (String, nullable)
+- resposta_json_llm (JSON)
+- createdAt / updatedAt
+
+## Scripts Disponíveis
+
+```bash
+# Desenvolvimento
+npm run start:dev
+
+# Build
+npm run build
+
+# Produção
+npm run start:prod
+
+# Testes
+npm run test
+npm run test:watch
+npm run test:cov
+npm run test:e2e
+
+# Linting e formatação
+npm run lint
+npm run format
+
+# Prisma
+npx prisma migrate dev
+npx prisma generate
+npx prisma studio
+```
+
+## Tratamento de Erros
+
+A API retorna erros no formato:
+
+```json
+{
+  "statusCode": 500,
+  "message": "Descrição do erro",
+  "error": "Internal Server Error"
+}
+```
+
+**Códigos HTTP:**
+
+- 200: Sucesso
+- 400: Bad Request (arquivo inválido, campos obrigatórios faltando)
+- 500: Internal Server Error (erro no processamento, OpenAI, S3, etc)
+
+## Observações Importantes
+
+- O upload para S3 é opcional - se falhar, o processamento continua sem a URL
+- A IA pode retornar `null` para campos não encontrados no PDF
+- O sistema valida apenas campos obrigatórios (cliente, instalação, mês, vencimento)
+- Valores monetários usam 2 casas decimais, quantidades (kWh) usam 3 casas
+- O filtro de período usa o campo `mes_referencia_data` para buscas eficientes
+
+## Licença
+
+UNLICENSED
