@@ -30,7 +30,7 @@ API REST desenvolvida para processar faturas de energia elétrica em formato PDF
 ### 1. Clonar o repositório
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/devmarcosantonio/lumi-faturas.git
 cd lumi-faturas
 ```
 
