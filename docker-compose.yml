@@ -11,5 +11,19 @@ services:
       POSTGRES_DB: lumi
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  postgres-test:
+    image: postgres:16
+    container_name: lumi-db-test
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: lumi
+      POSTGRES_PASSWORD: lumi
+      POSTGRES_DB: lumi_test
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+
 volumes:
   pgdata:
+  pgdata-test:

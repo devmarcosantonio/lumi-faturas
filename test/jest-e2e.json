@@ -5,5 +5,10 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1",
+    "^pdf-parse$": "<rootDir>/mocks/pdf-parse.mock.ts"
+  },
+  "setupFilesAfterEnv": ["<rootDir>/setup-e2e.ts"]
 }

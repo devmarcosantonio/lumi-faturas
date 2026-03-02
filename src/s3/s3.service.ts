@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 
 @Injectable()
 export class S3Service {
@@ -38,5 +43,29 @@ export class S3Service {
 
     // Retorna a URL do arquivo
     return `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+  }
+
+  async downloadPdf(url: string): Promise<Buffer> {
+    // Formato esperado: https://bucket.s3.region.amazonaws.com/path/to/file.pdf
+    const urlObj = new URL(url);
+    const key = urlObj.pathname.substring(1); // Remove a barra inicial
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    const response = await this.s3Client.send(command);
+
+    // Converte o stream em Buffer
+    if (response.Body instanceof Readable) {
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body) {
+        chunks.push(chunk as Uint8Array);
+      }
+      return Buffer.concat(chunks);
+    }
+
+    throw new Error('Não foi possível baixar o arquivo do S3');
   }
 }

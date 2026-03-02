@@ -17,7 +17,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "dotenv -e .env.test -- jest --config ./test/jest-e2e.json",
+    "test:e2e:watch": "dotenv -e .env.test -- jest --config ./test/jest-e2e.json --watch",
+    "test:db:setup": "dotenv -e .env.test -- npx prisma migrate deploy && dotenv -e .env.test -- npx prisma generate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
@@ -48,6 +50,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.2",
     "dotenv": "^17.3.1",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -74,6 +77,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

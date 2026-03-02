@@ -59,8 +59,8 @@ model Fatura {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([instalacao, mes_referencia])
   @@index([clienteId])
   @@index([mes_referencia])
   @@index([mes_referencia_data])
-  @@index([clienteId, mes_referencia])
 }

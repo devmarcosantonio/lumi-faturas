@@ -13,7 +13,6 @@ import { Fatura } from '@prisma/client';
 import {
   convertMesReferenciaToStartDate,
   convertMesReferenciaToEndDate,
-  getMonthRange,
 } from 'src/utils/date.utils';
 
 interface ClienteData {
@@ -180,24 +179,16 @@ export class FaturasService {
         );
       }
 
-      // Converte mes_referencia_data para buscar duplicatas (busca no mês completo)
-      let mesReferenciaInicio: Date | undefined;
-      let mesReferenciaFim: Date | undefined;
-      if (resposta_json.mes_referencia_data) {
-        const data = new Date(resposta_json.mes_referencia_data);
-        [mesReferenciaInicio, mesReferenciaFim] = getMonthRange(data);
-      }
-
-      const faturaClienteMesReferenciaExistente =
-        await this.faturasRepository.findByIdClienteEMesReferencia({
-          clienteId: cliente.id,
-          mesReferenciaInicio,
-          mesReferenciaFim,
+      // Verifica se já existe fatura para esta instalação + mês de referência
+      const faturaExistente =
+        await this.faturasRepository.findByInstalacaoEMesReferencia({
+          instalacao: resposta_json.instalacao,
+          mesReferencia: resposta_json.mes_referencia,
         });
 
-      if (faturaClienteMesReferenciaExistente.length > 0) {
+      if (faturaExistente) {
         throw new InternalServerErrorException(
-          `Já existe uma fatura para o cliente ${cliente.numero_cliente} no mês de referência ${resposta_json.mes_referencia}`,
+          `Já existe uma fatura para a instalação ${resposta_json.instalacao} no mês de referência ${resposta_json.mes_referencia}`,
         );
       }
 
@@ -284,6 +275,40 @@ export class FaturasService {
 
       throw new InternalServerErrorException(
         `Erro ao processar fatura: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  async downloadFaturaPdf(faturaId: string): Promise<Buffer> {
+    try {
+      // Busca a fatura no banco para pegar a URL
+      const fatura = await this.faturasRepository.findById(faturaId);
+
+      if (!fatura) {
+        throw new InternalServerErrorException(
+          `Fatura com ID ${faturaId} não encontrada`,
+        );
+      }
+
+      if (!fatura.url_download_fatura) {
+        throw new InternalServerErrorException(
+          `Fatura não possui URL de download`,
+        );
+      }
+
+      // Baixa o PDF do S3
+      const pdfBuffer = await this.s3Service.downloadPdf(
+        fatura.url_download_fatura,
+      );
+
+      return pdfBuffer;
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        `Erro ao baixar PDF da fatura: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       );
     }
   }

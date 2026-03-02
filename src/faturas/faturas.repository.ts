@@ -10,6 +10,27 @@ export class FaturasRepository {
     return this.prisma.fatura.create({ data: data });
   }
 
+  async findById(id: string): Promise<Fatura | null> {
+    return this.prisma.fatura.findUnique({
+      where: { id },
+    });
+  }
+
+  async findByInstalacaoEMesReferencia({
+    instalacao,
+    mesReferencia,
+  }: {
+    instalacao: string;
+    mesReferencia: string;
+  }): Promise<Fatura | null> {
+    return this.prisma.fatura.findFirst({
+      where: {
+        instalacao,
+        mes_referencia: mesReferencia,
+      },
+    });
+  }
+
   async findByIdClienteEMesReferencia({
     clienteId,
     mesReferenciaInicio,

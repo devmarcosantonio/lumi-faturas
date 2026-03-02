@@ -1,5 +1,4 @@
 import {
-  Body,
   BadRequestException,
   Controller,
   Get,
@@ -7,9 +6,12 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
+  Param,
+  Res,
 } from '@nestjs/common';
 import { FaturasService } from './faturas.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 
 @Controller('faturas')
 export class FaturasController {
@@ -55,5 +57,18 @@ export class FaturasController {
     const resposta = await this.faturasService.processarFatura(file.buffer);
 
     return { mensagem: 'Fatura processada com sucesso', resposta };
+  }
+
+  @Get(':id/download')
+  async downloadFatura(@Param('id') id: string, @Res() res: Response) {
+    const pdfBuffer = await this.faturasService.downloadFaturaPdf(id);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="fatura-${id}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
   }
 }
