@@ -15,4 +15,12 @@ export class ClientesRepository {
       where: { numero_cliente: clientNumber },
     });
   }
+
+  async findAll(): Promise<Cliente[]> {
+    return this.prisma.cliente.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }

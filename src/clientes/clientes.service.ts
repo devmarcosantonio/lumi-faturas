@@ -13,4 +13,8 @@ export class ClientesService {
   async create(data: Prisma.ClienteCreateInput) {
     return this.clientesRepository.create(data);
   }
+
+  async findAll() {
+    return this.clientesRepository.findAll();
+  }
 }
