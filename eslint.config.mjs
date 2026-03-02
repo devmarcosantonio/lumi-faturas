@@ -12,7 +12,7 @@ export default tseslint.config(
       'prisma/schema.prisma',
       'prisma/',
       'test/faturas.e2e-spec.ts',
-      'test/mocks/openai.mock.ts',
+      'test/mocks/*',
     ],
   },
   eslint.configs.recommended,
