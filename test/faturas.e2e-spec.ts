@@ -15,6 +15,7 @@ describe('FaturasController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
+  // CONFIGURAÇÃO DOS TESTES
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -40,27 +41,92 @@ describe('FaturasController (e2e)', () => {
     await app.close();
   });
 
-  describe('POST /faturas - Teste de Duplicatas', () => {
-    it('não deve permitir salvar fatura com mesma instalação e mês de referência', async () => {
-      // Caminho para os PDFs de teste
-      const pdf1Path = path.join(
+  // ========================================
+  // POST /faturas - VALIDAÇÃO DE ARQUIVO
+  // ========================================
+  describe('POST /faturas - Validação de Tipo de Arquivo', () => {
+    it('deve rejeitar arquivo que não seja PDF', async () => {
+      const txtFilePath = path.join(
+        __dirname,
+        'fixtures',
+        '1001-3001116735-01-2024.txt',
+      );
+
+      const fixturesDir = path.join(__dirname, 'fixtures');
+      if (!fs.existsSync(fixturesDir)) {
+        fs.mkdirSync(fixturesDir, { recursive: true });
+      }
+
+      fs.writeFileSync(
+        txtFilePath,
+        'Este é um arquivo de texto com nome válido, mas não é um PDF',
+      );
+
+      try {
+        const response = await request(app.getHttpServer())
+          .post('/faturas')
+          .attach('file', txtFilePath)
+          .expect((res) => {
+            if (res.status < 400) {
+              throw new Error(
+                `Esperado status >= 400, mas recebeu ${res.status}`,
+              );
+            }
+          });
+
+        if (response.body.message) {
+          expect(response.body.message.toLowerCase()).toMatch(
+            /pdf|arquivo|permitido/i,
+          );
+        }
+
+        const faturas = await prisma.fatura.findMany();
+        expect(faturas).toHaveLength(0);
+
+        const clientes = await prisma.cliente.findMany();
+        expect(clientes).toHaveLength(0);
+      } catch (error) {
+        if (
+          error.code === 'ECONNRESET' ||
+          error.message?.includes('ECONNRESET')
+        ) {
+          const faturas = await prisma.fatura.findMany();
+          expect(faturas).toHaveLength(0);
+
+          const clientes = await prisma.cliente.findMany();
+          expect(clientes).toHaveLength(0);
+        } else {
+          throw error;
+        }
+      } finally {
+        if (fs.existsSync(txtFilePath)) {
+          fs.unlinkSync(txtFilePath);
+        }
+      }
+    });
+  });
+
+  // ========================================
+  // POST /faturas - REGRAS DE DUPLICATAS
+  // ========================================
+  describe('POST /faturas - Regras de Duplicatas', () => {
+    it('não deve permitir salvar fatura duplicada (mesma instalação + mês)', async () => {
+      const pdfPath = path.join(
         __dirname,
         'fixtures',
         '1001-3001116735-01-2024.pdf',
       );
 
-      // Verifica se o arquivo existe
-      if (!fs.existsSync(pdf1Path)) {
-        throw new Error(`Arquivo de teste não encontrado: ${pdf1Path}`);
+      if (!fs.existsSync(pdfPath)) {
+        throw new Error(`Arquivo de teste não encontrado: ${pdfPath}`);
       }
 
-      // Define o nome do arquivo para o mock da OpenAI
       setCurrentFileName('1001-3001116735-01-2024.pdf');
 
       // Primeiro upload - deve ter sucesso
       const response1 = await request(app.getHttpServer())
         .post('/faturas')
-        .attach('file', pdf1Path);
+        .attach('file', pdfPath);
 
       if (response1.status !== 201) {
         console.log('Erro no primeiro upload:', response1.body);
@@ -70,13 +136,12 @@ describe('FaturasController (e2e)', () => {
       expect(response1.body.resposta.instalacao).toBe('3001116735');
       expect(response1.body.resposta.mes_referencia).toBe('JAN/2024');
 
-      // Define novamente o nome do arquivo para o mock
       setCurrentFileName('1001-3001116735-01-2024.pdf');
 
-      // Segundo upload do MESMO arquivo (mesma instalação + mês) - deve falhar
+      // Segundo upload (mesma instalação + mês) - deve falhar
       const response2 = await request(app.getHttpServer())
         .post('/faturas')
-        .attach('file', pdf1Path);
+        .attach('file', pdfPath);
 
       expect(response2.status).toBe(500);
       expect(response2.body.message).toContain('Já existe uma fatura');
@@ -84,7 +149,7 @@ describe('FaturasController (e2e)', () => {
       expect(response2.body.message).toContain('JAN/2024');
     });
 
-    it('deve permitir salvar faturas da mesma instalação mas de meses diferentes', async () => {
+    it('deve permitir salvar faturas da mesma instalação em meses diferentes', async () => {
       const pdf1Path = path.join(
         __dirname,
         'fixtures',
@@ -96,7 +161,6 @@ describe('FaturasController (e2e)', () => {
         '1001-3001116735-02-2024.pdf',
       );
 
-      // Verifica se os arquivos existem
       if (!fs.existsSync(pdf1Path)) {
         throw new Error(`Arquivo de teste não encontrado: ${pdf1Path}`);
       }
@@ -104,7 +168,7 @@ describe('FaturasController (e2e)', () => {
         throw new Error(`Arquivo de teste não encontrado: ${pdf2Path}`);
       }
 
-      // Primeiro upload - Janeiro 2024
+      // Upload 1 - Janeiro 2024
       setCurrentFileName('1001-3001116735-01-2024.pdf');
       const response1 = await request(app.getHttpServer())
         .post('/faturas')
@@ -118,7 +182,7 @@ describe('FaturasController (e2e)', () => {
       expect(response1.body.resposta.instalacao).toBe('3001116735');
       expect(response1.body.resposta.mes_referencia).toBe('JAN/2024');
 
-      // Segundo upload - Fevereiro 2024 (mesma instalação, mês diferente)
+      // Upload 2 - Fevereiro 2024 (mesma instalação, mês diferente)
       setCurrentFileName('1001-3001116735-02-2024.pdf');
       const response2 = await request(app.getHttpServer())
         .post('/faturas')
@@ -141,8 +205,13 @@ describe('FaturasController (e2e)', () => {
       const meses = faturas.map((f) => f.mes_referencia).sort();
       expect(meses).toEqual(['FEV/2024', 'JAN/2024']);
     });
+  });
 
-    it('não deve criar cliente duplicado ao processar faturas da mesma instalação', async () => {
+  // ========================================
+  // POST /faturas - GERENCIAMENTO DE CLIENTES
+  // ========================================
+  describe('POST /faturas - Gerenciamento de Clientes', () => {
+    it('não deve criar cliente duplicado ao processar múltiplas faturas da mesma instalação', async () => {
       const pdf1Path = path.join(
         __dirname,
         'fixtures',
@@ -154,7 +223,6 @@ describe('FaturasController (e2e)', () => {
         '1001-3001116735-02-2024.pdf',
       );
 
-      // Verifica se os arquivos existem
       if (!fs.existsSync(pdf1Path)) {
         throw new Error(`Arquivo de teste não encontrado: ${pdf1Path}`);
       }
@@ -162,7 +230,7 @@ describe('FaturasController (e2e)', () => {
         throw new Error(`Arquivo de teste não encontrado: ${pdf2Path}`);
       }
 
-      // Primeiro upload - Janeiro 2024
+      // Upload 1 - Janeiro 2024
       setCurrentFileName('1001-3001116735-01-2024.pdf');
       const response1 = await request(app.getHttpServer())
         .post('/faturas')
@@ -171,7 +239,7 @@ describe('FaturasController (e2e)', () => {
       expect(response1.status).toBe(201);
       const clienteId1 = response1.body.resposta.clienteId;
 
-      // Segundo upload - Fevereiro 2024 (mesma instalação)
+      // Upload 2 - Fevereiro 2024 (mesma instalação)
       setCurrentFileName('1001-3001116735-02-2024.pdf');
       const response2 = await request(app.getHttpServer())
         .post('/faturas')
@@ -199,7 +267,7 @@ describe('FaturasController (e2e)', () => {
       expect(faturas[1].clienteId).toBe(clienteId1);
     });
 
-    it('deve criar clientes diferentes para números de cliente diferentes', async () => {
+    it('deve criar clientes distintos para números de cliente diferentes', async () => {
       const pdf1Path = path.join(
         __dirname,
         'fixtures',
@@ -216,7 +284,6 @@ describe('FaturasController (e2e)', () => {
         '1003-3001422762-02-2024.pdf',
       );
 
-      // Verifica se os arquivos existem
       if (!fs.existsSync(pdf1Path)) {
         throw new Error(`Arquivo de teste não encontrado: ${pdf1Path}`);
       }
@@ -227,7 +294,7 @@ describe('FaturasController (e2e)', () => {
         throw new Error(`Arquivo de teste não encontrado: ${pdf3Path}`);
       }
 
-      // Upload 1 - Cliente 1001, Instalação 3001116735, Janeiro 2024
+      // Upload 1 - Cliente 1001
       setCurrentFileName('1001-3001116735-01-2024.pdf');
       const response1 = await request(app.getHttpServer())
         .post('/faturas')
@@ -236,7 +303,7 @@ describe('FaturasController (e2e)', () => {
       expect(response1.status).toBe(201);
       const clienteId1 = response1.body.resposta.clienteId;
 
-      // Upload 2 - Cliente 1002, Instalação 3001422762, Janeiro 2024
+      // Upload 2 - Cliente 1002
       setCurrentFileName('1002-3001422762-01-2024.pdf');
       const response2 = await request(app.getHttpServer())
         .post('/faturas')
@@ -245,7 +312,7 @@ describe('FaturasController (e2e)', () => {
       expect(response2.status).toBe(201);
       const clienteId2 = response2.body.resposta.clienteId;
 
-      // Upload 3 - Cliente 1003, Instalação 3001422762, Fevereiro 2024
+      // Upload 3 - Cliente 1003
       setCurrentFileName('1003-3001422762-02-2024.pdf');
       const response3 = await request(app.getHttpServer())
         .post('/faturas')
@@ -282,81 +349,6 @@ describe('FaturasController (e2e)', () => {
       expect(fatura1?.clienteId).toBe(clienteId1);
       expect(fatura2?.clienteId).toBe(clienteId2);
       expect(fatura3?.clienteId).toBe(clienteId3);
-    });
-  });
-
-  describe('POST /faturas - Validação de Tipo de Arquivo', () => {
-    it('deve retornar erro ao tentar enviar arquivo .txt mesmo com nome válido de fatura', async () => {
-      // Arquivo .txt com nome de fatura válido
-      const txtFilePath = path.join(
-        __dirname,
-        'fixtures',
-        '1001-3001116735-01-2024.txt',
-      );
-
-      // Garante que o diretório existe
-      const fixturesDir = path.join(__dirname, 'fixtures');
-      if (!fs.existsSync(fixturesDir)) {
-        fs.mkdirSync(fixturesDir, { recursive: true });
-      }
-
-      // Cria o arquivo de texto com nome de fatura válido
-      fs.writeFileSync(
-        txtFilePath,
-        'Este é um arquivo de texto com nome válido, mas não é um PDF',
-      );
-
-      try {
-        // Tenta fazer upload do arquivo .txt
-        const response = await request(app.getHttpServer())
-          .post('/faturas')
-          .attach('file', txtFilePath)
-          .expect((res) => {
-            // Aceita qualquer status >= 400 (erro do cliente)
-            if (res.status < 400) {
-              throw new Error(
-                `Esperado status >= 400, mas recebeu ${res.status}`,
-              );
-            }
-          });
-
-        // Se chegou aqui, o servidor retornou um erro como esperado
-        // Verifica que a mensagem de erro menciona PDF
-        if (response.body.message) {
-          expect(response.body.message.toLowerCase()).toMatch(
-            /pdf|arquivo|permitido/i,
-          );
-        }
-
-        // Verifica que nenhuma fatura foi criada
-        const faturas = await prisma.fatura.findMany();
-        expect(faturas).toHaveLength(0);
-
-        // Verifica que nenhum cliente foi criado
-        const clientes = await prisma.cliente.findMany();
-        expect(clientes).toHaveLength(0);
-      } catch (error) {
-        // Se houve erro de rede (ECONNRESET), ainda verificamos o banco
-        if (
-          error.code === 'ECONNRESET' ||
-          error.message?.includes('ECONNRESET')
-        ) {
-          // O servidor rejeitou corretamente o arquivo
-          // Verifica que nada foi salvo no banco
-          const faturas = await prisma.fatura.findMany();
-          expect(faturas).toHaveLength(0);
-
-          const clientes = await prisma.cliente.findMany();
-          expect(clientes).toHaveLength(0);
-        } else {
-          throw error; // Re-lança outros erros
-        }
-      } finally {
-        // Limpa o arquivo temporário
-        if (fs.existsSync(txtFilePath)) {
-          fs.unlinkSync(txtFilePath);
-        }
-      }
     });
   });
 });
