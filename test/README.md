@@ -15,6 +15,7 @@ npm run test:db:setup
 ```
 
 Este comando vai:
+
 - Aplicar todas as migrations no banco de teste
 - Gerar o Prisma Client
 
@@ -26,6 +27,8 @@ npm install --save-dev dotenv-cli
 
 ## Rodando os Testes
 
+> ⚠️ **Atenção**: Este projeto atualmente possui apenas **testes E2E** (end-to-end). Testes unitários ainda não foram implementados.
+
 ### Testes E2E
 
 ```bash
@@ -34,19 +37,6 @@ npm run test:e2e
 
 # Rodar em modo watch
 npm run test:e2e:watch
-```
-
-### Testes Unitários
-
-```bash
-# Rodar todos os testes unitários
-npm test
-
-# Rodar em modo watch
-npm run test:watch
-
-# Rodar com coverage
-npm run test:cov
 ```
 
 ## Estrutura de Testes
@@ -94,12 +84,14 @@ docker-compose down -v
 ## Casos de Teste Cobertos
 
 ### POST /faturas
+
 - ✅ Processar PDF válido
 - ✅ Rejeitar arquivo não-PDF
 - ✅ Rejeitar requisição sem arquivo
 - ✅ Impedir duplicatas (mesma instalação + mês)
 
 ### GET /faturas
+
 - ✅ Listar todas as faturas
 - ✅ Filtrar por número de cliente
 - ✅ Filtrar por mês específico
@@ -110,12 +102,15 @@ docker-compose down -v
 ## Troubleshooting
 
 **Erro de conexão com banco:**
+
 - Verifique se o container postgres-test está rodando: `docker ps`
 - Verifique se a porta 5433 está livre: `netstat -an | findstr 5433`
 
 **Migrations não aplicadas:**
+
 - Rode `npm run test:db:setup` novamente
 
 **Testes falhando:**
+
 - Verifique se as variáveis de ambiente em `.env.test` estão corretas
 - Limpe o banco: `dotenv -e .env.test -- npx prisma migrate reset`
