@@ -85,6 +85,29 @@ A API estará disponível em `http://localhost:3000`
 
 ## Endpoints da API
 
+### Clientes
+
+#### GET /clientes
+
+Retorna lista de todos os clientes cadastrados.
+
+**Response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "numero_cliente": "7202210726",
+    "nome": "Nome do Cliente",
+    "uf": "SC",
+    "municipio": "Cidade",
+    "cep": "12345678",
+    "createdAt": "2026-03-01T22:00:00.000Z",
+    "updatedAt": "2026-03-01T22:00:00.000Z"
+  }
+]
+```
+
 ### Faturas
 
 #### POST /faturas
@@ -180,6 +203,26 @@ GET /faturas?numero_cliente=7202210726&mes_referencia=2026-01
   }
 ]
 ```
+
+#### GET /faturas/:id/download
+
+Download do arquivo PDF de uma fatura específica.
+
+**Path Parameters:**
+
+- `id` (obrigatório) - UUID da fatura
+
+**Exemplo:**
+
+```bash
+GET /faturas/123e4567-e89b-12d3-a456-426614174000/download
+```
+
+**Response:**
+
+- Content-Type: `application/pdf`
+- Content-Disposition: `attachment; filename="fatura-{id}.pdf"`
+- Body: Arquivo PDF em formato binário
 
 ## Estrutura do Projeto
 
