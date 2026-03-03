@@ -246,6 +246,7 @@ src/
 │   └── prisma.module.ts
 ├── s3/                # Integração AWS S3
 │   └── s3.service.ts
+│   └── s3.module.ts
 ├── utils/             # Utilitários
 │   └── date.utils.ts
 ├── app.module.ts
@@ -328,8 +329,7 @@ npm run build
 npm run start:prod
 
 # Testes
-npm run test
-npm run test:watch
+npm run test (nessa versão não tem testes unitários)
 npm run test:cov
 npm run test:e2e
 
