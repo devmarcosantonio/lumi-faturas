@@ -371,4 +371,4 @@ A API retorna erros no formato:
 
 ## Licença
 
-UNLICENSED
+Não pode ser usado comercialmente!
